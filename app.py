@@ -69,6 +69,8 @@ if uploaded is not None and st.session_state.df_all is None:
         df_all["name_fa"] = ""
     if "address" not in df_all.columns:
         df_all["address"] = ""
+    if "main_category" not in df_all.columns:
+        df_all["main_category"] = ""
     # Keep CHECK_COL as last column (optional)
     cols = [c for c in df_all.columns if c != CHECK_COL] + [CHECK_COL]
     df_all = df_all[cols]
@@ -84,6 +86,8 @@ if "name_fa" not in df_all.columns:
     df_all["name_fa"] = ""
 if "address" not in df_all.columns:
     df_all["address"] = ""
+if "main_category" not in df_all.columns:
+    df_all["main_category"] = ""
 
 # 🔄 Auto-save every 5 minutes
 count = st_autorefresh(interval=5 * 60 * 1000, key="autosave")
@@ -139,6 +143,7 @@ for i, sub in zip(group_rows["index"], group_rows["subcategory"]):
 site = str(row.get("website", "") or "").strip()
 maps = str(row.get("link", "") or "").strip()
 subcat = str(row.get("subcategory", "") or "").strip()
+main_cat = str(row.get("main_category", "") or "").strip()
 q_name = new_name_fa.strip() if new_name_fa.strip() else current_name_en
 q_text, q_url = build_google_query(q_name, city, subcat)
 
@@ -199,6 +204,23 @@ if a3.button("🗑️ Delete Business", use_container_width=True):
     st.session_state.df_all = st.session_state.df_all.reset_index(drop=True)
     st.session_state.unchecked_idx = max(0, min(idx, len(df_unchecked)-2))
     do_rerun = True
+
+# ---- Show other subcategories of the same main category ----
+if main_cat:
+    st.markdown("---")
+    st.markdown("### ➕ Other subcategories in this main category")
+    all_subs = df_all.loc[df_all["main_category"].astype(str).str.strip().str.lower() == main_cat.lower(), "subcategory"]
+    all_subs = sorted(set(all_subs.astype(str).str.strip()))
+    added_subcats = []
+    for sub in all_subs:
+        # Already exists for this business?
+        exists = sub in group_rows["subcategory"].astype(str).str.strip().tolist()
+        checked = st.checkbox(sub, value=exists, key=f"main_{sub}_{idx}")
+        if checked and not exists:
+            added_subcats.append(sub)
+    # If user checked new subcategories, add them after approval
+    if added_subcats:
+        st.info("These new subcategories will be added on next Approve: " + ", ".join(added_subcats))
 
 if do_rerun:
     st.rerun()
