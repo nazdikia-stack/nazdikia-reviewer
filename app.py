@@ -28,6 +28,7 @@ def init_state():
         "df_all": None,
         "unchecked_idx": 0,
         "filename": None,
+        "history": [],
     }.items():
         if k not in st.session_state:
             st.session_state[k] = v
@@ -76,6 +77,7 @@ if st.session_state.df_all is None:
 df_all = st.session_state.df_all
 if "name_fa" not in df_all.columns:
     df_all["name_fa"] = ""
+
 mask_unchecked = df_all[CHECK_COL].astype(str).str.strip().str.lower().ne(CHECK_VAL)
 df_unchecked = df_all.loc[mask_unchecked].reset_index(drop=True)
 
@@ -136,17 +138,25 @@ with cols[1]:
         st.text("—")
 with cols[2]:
     st.write("**Google query:**")
-    st.link_button("🔎 Search Google", q_url)
+    st.markdown(f"`{q_text}`  \n[Open search]({q_url})")
 
 # Actions
 a1, a2, a3 = st.columns(3)
 do_rerun = False
 
 if a1.button("⬅️ Back", use_container_width=True):
-    st.session_state.unchecked_idx = max(0, idx-1)
-    do_rerun = True
+    if st.session_state.history:
+        last_state = st.session_state.history.pop()
+        st.session_state.df_all = last_state["df_all"]
+        st.session_state.unchecked_idx = last_state["idx"]
+        do_rerun = True
 
 if a2.button("✅ Approve & Next", type="primary", use_container_width=True):
+    # Save current snapshot before change
+    st.session_state.history.append({
+        "df_all": st.session_state.df_all.copy(),
+        "idx": idx
+    })
     # Update Persian names
     for i in group_rows["index"]:
         st.session_state.df_all.at[i, "name_fa"] = new_name_fa.strip()
@@ -161,6 +171,11 @@ if a2.button("✅ Approve & Next", type="primary", use_container_width=True):
     do_rerun = True
 
 if a3.button("🗑️ Delete Business", use_container_width=True):
+    # Save current snapshot before change
+    st.session_state.history.append({
+        "df_all": st.session_state.df_all.copy(),
+        "idx": idx
+    })
     st.session_state.df_all = st.session_state.df_all.drop(group_rows["index"])
     st.session_state.df_all = st.session_state.df_all.reset_index(drop=True)
     st.session_state.unchecked_idx = max(0, min(idx, len(df_unchecked)-2))
