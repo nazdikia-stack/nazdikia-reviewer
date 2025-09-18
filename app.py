@@ -110,7 +110,6 @@ row = df_unchecked.iloc[idx]
 current_name_en = str(row.get("name", "") or "")
 group_mask = df_all["name"].astype(str).str.strip().str.lower() == current_name_en.strip().lower()
 group_rows = df_all.loc[group_mask].reset_index()
-group_subcats = group_rows["subcategory"].astype(str).str.strip().tolist()
 
 # Persian name (editable target column)
 current_name_fa = str(row.get("name_fa", "") or "")
@@ -128,11 +127,11 @@ address = str(row.get("address", "") or "")
 st.write("**City:**", city if city else "—")
 st.write("**Address:**", address if address else "—")
 
-# Category selection with checkboxes
+# Category selection with checkboxes (unique keys by dataframe index)
 st.markdown("**Select categories to KEEP for this business:**")
 selected_subcats = []
-for sub in group_subcats:
-    checked = st.checkbox(sub, value=True, key=f"sub_{sub}_{idx}")
+for i, sub in zip(group_rows["index"], group_rows["subcategory"]):
+    checked = st.checkbox(sub, value=True, key=f"sub_{i}")
     if checked:
         selected_subcats.append(sub)
 
