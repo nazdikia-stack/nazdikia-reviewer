@@ -64,6 +64,8 @@ if uploaded is not None and st.session_state.df_all is None:
         df_all[CHECK_COL] = ""
     if "name_fa" not in df_all.columns:
         df_all["name_fa"] = ""
+    if "address" not in df_all.columns:
+        df_all["address"] = ""
     # Keep CHECK_COL as last column (optional)
     cols = [c for c in df_all.columns if c != CHECK_COL] + [CHECK_COL]
     df_all = df_all[cols]
@@ -77,6 +79,8 @@ if st.session_state.df_all is None:
 df_all = st.session_state.df_all
 if "name_fa" not in df_all.columns:
     df_all["name_fa"] = ""
+if "address" not in df_all.columns:
+    df_all["address"] = ""
 
 mask_unchecked = df_all[CHECK_COL].astype(str).str.strip().str.lower().ne(CHECK_VAL)
 df_unchecked = df_all.loc[mask_unchecked].reset_index(drop=True)
@@ -105,8 +109,11 @@ st.markdown(f"## 🏷️ {current_name_en}")
 display_name_fa = current_name_fa if current_name_fa else ""
 new_name_fa = st.text_input("نام کسب‌وکار (فارسی، قابل ویرایش):", value=display_name_fa, placeholder="نام فارسی را وارد کنید")
 
-# City (use from first row)
+# City + Address (read-only)
 city = str(row.get("city", "") or "")
+address = str(row.get("address", "") or "")
+st.write("**City:**", city if city else "—")
+st.write("**Address:**", address if address else "—")
 
 # Category selection with checkboxes
 st.markdown("**Select categories to KEEP for this business:**")
