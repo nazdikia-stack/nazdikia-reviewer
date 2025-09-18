@@ -58,8 +58,12 @@ with st.sidebar:
 
 if uploaded is not None and st.session_state.df_all is None:
     df_all = load_csv(uploaded.getvalue())
+    # Ensure columns
     if CHECK_COL not in df_all.columns:
         df_all[CHECK_COL] = ""
+    if "name_fa" not in df_all.columns:
+        df_all["name_fa"] = ""
+    # Keep CHECK_COL as last column (optional)
     cols = [c for c in df_all.columns if c != CHECK_COL] + [CHECK_COL]
     df_all = df_all[cols]
     st.session_state.df_all = df_all
@@ -70,6 +74,9 @@ if st.session_state.df_all is None:
     st.stop()
 
 df_all = st.session_state.df_all
+# Ensure name_fa exists even if file was loaded earlier session without it
+if "name_fa" not in df_all.columns:
+    df_all["name_fa"] = ""
 mask_unchecked = df_all[CHECK_COL].astype(str).str.strip().str.lower().ne(CHECK_VAL)
 df_unchecked = df_all.loc[mask_unchecked].reset_index(drop=True)
 
@@ -81,16 +88,20 @@ idx = int(st.session_state.unchecked_idx)
 idx = max(0, min(idx, len(df_unchecked)-1))
 row = df_unchecked.iloc[idx]
 
-# ----- GROUP by business name -----
-current_name = str(row.get("name", "") or "")
-group_mask = df_all["name"].astype(str).str.strip().str.lower() == current_name.strip().lower()
+# ----- GROUP by English business name (stable key) -----
+current_name_en = str(row.get("name", "") or "")
+group_mask = df_all["name"].astype(str).str.strip().str.lower() == current_name_en.strip().lower()
 group_rows = df_all.loc[group_mask].reset_index()
 group_subcats = group_rows["subcategory"].astype(str).str.strip().tolist()
 
-st.subheader(f"Business: {current_name}")
+# Persian name (editable target column)
+current_name_fa = str(row.get("name_fa", "") or "")
+display_name_fa = current_name_fa if current_name_fa else current_name_en
 
-# Editable business name
-new_name = st.text_input("Business name (editable):", value=current_name)
+st.subheader(f"Business: {current_name_en}")
+
+# Editable Persian business name (writes to `name_fa`)
+new_name_fa = st.text_input("نام کسب‌وکار (فارسی، قابل ویرایش):", value=display_name_fa)
 
 # City (use from first row)
 city = str(row.get("city", "") or "")
@@ -105,7 +116,8 @@ selected_subcats = st.multiselect(
 site = str(row.get("website", "") or "").strip()
 maps = str(row.get("link", "") or "").strip()
 subcat = str(row.get("subcategory", "") or "").strip()
-q_text, q_url = build_google_query(new_name, city, subcat)
+# Build query using the Persian name if provided, else English
+q_text, q_url = build_google_query(new_name_fa or current_name_en, city, subcat)
 
 cols = st.columns(3)
 with cols[0]:
@@ -133,9 +145,9 @@ if a1.button("⬅️ Back", use_container_width=True):
     do_rerun = True
 
 if a2.button("✅ Approve & Next", type="primary", use_container_width=True):
-    # Update names in df_all
+    # Update Persian names (write to `name_fa`) for all rows in this business group
     for i in group_rows["index"]:
-        st.session_state.df_all.at[i, "name"] = new_name
+        st.session_state.df_all.at[i, "name_fa"] = new_name_fa.strip()
     # Keep only selected subcats, mark them checked
     for i, sub in zip(group_rows["index"], group_rows["subcategory"]):
         if sub in selected_subcats:
