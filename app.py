@@ -20,10 +20,8 @@ def build_google_query(name, city, subcat):
     if subcat: parts.append(str(subcat).strip())
     parts.append("Persian Iranian Farsi")
     q = " ".join([p for p in parts if p])
-    url = "https://www.google.com/search?q=" + urllib.parse.quote(q)
+    url = "https://www.google.com/search?q=" + up.quote(q)
     return q, url
-
-import urllib.parse  # placed here to avoid shadowing
 
 def init_state():
     for k, v in {
@@ -76,7 +74,6 @@ if st.session_state.df_all is None:
     st.stop()
 
 df_all = st.session_state.df_all
-# Ensure name_fa exists even if file was loaded earlier session without it
 if "name_fa" not in df_all.columns:
     df_all["name_fa"] = ""
 mask_unchecked = df_all[CHECK_COL].astype(str).str.strip().str.lower().ne(CHECK_VAL)
@@ -90,7 +87,7 @@ idx = int(st.session_state.unchecked_idx)
 idx = max(0, min(idx, len(df_unchecked)-1))
 row = df_unchecked.iloc[idx]
 
-# ----- GROUP by English business name (stable key) -----
+# ----- GROUP by English business name -----
 current_name_en = str(row.get("name", "") or "")
 group_mask = df_all["name"].astype(str).str.strip().str.lower() == current_name_en.strip().lower()
 group_rows = df_all.loc[group_mask].reset_index()
@@ -99,27 +96,28 @@ group_subcats = group_rows["subcategory"].astype(str).str.strip().tolist()
 # Persian name (editable target column)
 current_name_fa = str(row.get("name_fa", "") or "")
 
-# Title shows English name prominently
-st.markdown(f"## 🏷️ {current_name_en}  \n<small>(English name)</small>", unsafe_allow_html=True)
+# Title shows English name
+st.markdown(f"## 🏷️ {current_name_en}")
 
-# Editable Persian business name (writes to `name_fa`)
+# Editable Persian name
 display_name_fa = current_name_fa if current_name_fa else ""
 new_name_fa = st.text_input("نام کسب‌وکار (فارسی، قابل ویرایش):", value=display_name_fa, placeholder="نام فارسی را وارد کنید")
 
 # City (use from first row)
 city = str(row.get("city", "") or "")
 
-# Category selection
+# Category selection with checkboxes
 st.markdown("**Select categories to KEEP for this business:**")
-selected_subcats = st.multiselect(
-    "Categories", options=group_subcats, default=group_subcats
-)
+selected_subcats = []
+for sub in group_subcats:
+    checked = st.checkbox(sub, value=True, key=f"sub_{sub}_{idx}")
+    if checked:
+        selected_subcats.append(sub)
 
-# Show other info (website/maps/query) from the first row
+# Other info
 site = str(row.get("website", "") or "").strip()
 maps = str(row.get("link", "") or "").strip()
 subcat = str(row.get("subcategory", "") or "").strip()
-# Build query using the Persian name if provided, else English
 q_name = new_name_fa.strip() if new_name_fa.strip() else current_name_en
 q_text, q_url = build_google_query(q_name, city, subcat)
 
@@ -127,18 +125,18 @@ cols = st.columns(3)
 with cols[0]:
     st.write("**Website:**")
     if site:
-        st.markdown(f"[{site}]({site})")
+        st.link_button("🌐 Visit Website", site)
     else:
         st.text("—")
 with cols[1]:
     st.write("**Google Maps:**")
     if maps:
-        st.markdown(f"[{maps}]({maps})")
+        st.link_button("📍 Open Google Maps", maps)
     else:
         st.text("—")
 with cols[2]:
     st.write("**Google query:**")
-    st.markdown(f"`{q_text}`  \n[Open search]({q_url})")
+    st.link_button("🔎 Search Google", q_url)
 
 # Actions
 a1, a2, a3 = st.columns(3)
@@ -149,7 +147,7 @@ if a1.button("⬅️ Back", use_container_width=True):
     do_rerun = True
 
 if a2.button("✅ Approve & Next", type="primary", use_container_width=True):
-    # Update Persian names (write to `name_fa`) for all rows in this business group
+    # Update Persian names
     for i in group_rows["index"]:
         st.session_state.df_all.at[i, "name_fa"] = new_name_fa.strip()
     # Keep only selected subcats, mark them checked
@@ -163,7 +161,6 @@ if a2.button("✅ Approve & Next", type="primary", use_container_width=True):
     do_rerun = True
 
 if a3.button("🗑️ Delete Business", use_container_width=True):
-    # Drop all rows of this business
     st.session_state.df_all = st.session_state.df_all.drop(group_rows["index"])
     st.session_state.df_all = st.session_state.df_all.reset_index(drop=True)
     st.session_state.unchecked_idx = max(0, min(idx, len(df_unchecked)-2))
