@@ -20,8 +20,10 @@ def build_google_query(name, city, subcat):
     if subcat: parts.append(str(subcat).strip())
     parts.append("Persian Iranian Farsi")
     q = " ".join([p for p in parts if p])
-    url = "https://www.google.com/search?q=" + up.quote(q)
+    url = "https://www.google.com/search?q=" + urllib.parse.quote(q)
     return q, url
+
+import urllib.parse  # placed here to avoid shadowing
 
 def init_state():
     for k, v in {
@@ -96,12 +98,13 @@ group_subcats = group_rows["subcategory"].astype(str).str.strip().tolist()
 
 # Persian name (editable target column)
 current_name_fa = str(row.get("name_fa", "") or "")
-display_name_fa = current_name_fa if current_name_fa else current_name_en
 
-st.subheader(f"Business: {current_name_en}")
+# Title shows English name prominently
+st.markdown(f"## 🏷️ {current_name_en}  \n<small>(English name)</small>", unsafe_allow_html=True)
 
 # Editable Persian business name (writes to `name_fa`)
-new_name_fa = st.text_input("نام کسب‌وکار (فارسی، قابل ویرایش):", value=display_name_fa)
+display_name_fa = current_name_fa if current_name_fa else ""
+new_name_fa = st.text_input("نام کسب‌وکار (فارسی، قابل ویرایش):", value=display_name_fa, placeholder="نام فارسی را وارد کنید")
 
 # City (use from first row)
 city = str(row.get("city", "") or "")
@@ -117,7 +120,8 @@ site = str(row.get("website", "") or "").strip()
 maps = str(row.get("link", "") or "").strip()
 subcat = str(row.get("subcategory", "") or "").strip()
 # Build query using the Persian name if provided, else English
-q_text, q_url = build_google_query(new_name_fa or current_name_en, city, subcat)
+q_name = new_name_fa.strip() if new_name_fa.strip() else current_name_en
+q_text, q_url = build_google_query(q_name, city, subcat)
 
 cols = st.columns(3)
 with cols[0]:
