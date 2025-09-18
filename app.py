@@ -4,6 +4,9 @@ import io
 import pandas as pd
 import streamlit as st
 import urllib.parse as up
+from datetime import datetime
+from pathlib import Path as PathlibPath
+from streamlit_autorefresh import st_autorefresh
 
 CHECK_COL = "check?"
 CHECK_VAL = "checked"
@@ -81,6 +84,16 @@ if "name_fa" not in df_all.columns:
     df_all["name_fa"] = ""
 if "address" not in df_all.columns:
     df_all["address"] = ""
+
+# 🔄 Auto-save every 5 minutes
+count = st_autorefresh(interval=5 * 60 * 1000, key="autosave")
+if st.session_state.df_all is not None:
+    save_dir = PathlibPath("Final_reviewed")
+    save_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = save_dir / f"autosave_{timestamp}.csv"
+    st.session_state.df_all.to_csv(save_path, index=False, encoding="utf-8-sig")
+    st.sidebar.success(f"Auto-saved at {timestamp}")
 
 mask_unchecked = df_all[CHECK_COL].astype(str).str.strip().str.lower().ne(CHECK_VAL)
 df_unchecked = df_all.loc[mask_unchecked].reset_index(drop=True)
